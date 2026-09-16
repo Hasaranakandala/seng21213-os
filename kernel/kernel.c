@@ -26,7 +26,8 @@
 #include "keyboard.h"
 #include "thread.h"
 #include "mutex.h"
-
+#include "idt.h"
+#include "pmm.h"
 int myglobal = 0;
 mutex_t mymutex;
 
@@ -57,7 +58,7 @@ void safe_thread_2(void* arg) {
 
 
 
-
+extern void pic_remap(void);
 extern void keyboard_init();
 extern void shell_run();
 
@@ -81,29 +82,80 @@ void process_b() {
         for (volatile int i = 0; i < 20000000; i++);
     }
 }
-
+/*
 void timer_init() {
     outb(0x43, 0x36);
     int divisor = 11931; 
     outb(0x40, divisor & 0xFF);
     outb(0x40, divisor >> 8);
 }
+*/
+void timer_init(int freq) {
+    int divisor = 1193180 / freq;   // PIT base frequency = 1193180 Hz
+    outb(0x43, 0x36);
+    outb(0x40, divisor & 0xFF);
+    outb(0x40, (divisor >> 8) & 0xFF);
+}
+void serial_putc(char c) {
+    outb(0x3F8, c);  // COM1 data register
+}
+
+ void serial_print(const char *s) {
+    while (*s) serial_putc(*s++);
+}
 
 void kernel_main() {
+    serial_print("1: before vga_init\n");
     vga_init();
+    serial_print("2: after vga_init\n");
+
     vga_printf("Starting Stage 2: Threads & Mutex Demo...\n");
+    serial_print("3: after vga_printf\n");
 
-    
+    pmm_init(32 * 1024 * 1024);
+    serial_print("4: after pmm_init\n");
+
     mutex_init(&mymutex);
-    thread_create(safe_thread_1, 0);
-    thread_create(safe_thread_2, 0);
+    serial_print("5: after mutex_init\n");
+
+    pic_remap();
+    serial_print("5b: after pic_remap\n");
+
+    idt_init();
+    serial_print("5c: after idt_init\n");
+
+    timer_init(100);
+    serial_print("6: after timer_init\n");
+
+    __asm__ volatile("sti");
+
+    serial_print("7: after sti\n");
+     serial_print("=== Testing PMM (meminfo) ===\n");
+
+    uint32_t total, used, free;
+    pmm_get_memory_stats(&total, &used, &free);
+    vga_printf("Total Memory: %d KB\n", total);
+    vga_printf("Used Memory: %d KB\n", used);
+    vga_printf("Free Memory: %d KB\n", free);
+
+    serial_print("=== Allocating 100 frames ===\n");
+    void *frames[100];
+    for (int i = 0; i < 100; i++) {
+        frames[i] = pmm_alloc_frame();
+    }
+    pmm_get_memory_stats(&total, &used, &free);
+    vga_printf("After alloc 100 -> Used: %d KB, Free: %d KB\n", used, free);
+
+    serial_print("=== Freeing 100 frames ===\n");
+    for (int i = 0; i < 100; i++) {
+        pmm_free_frame(frames[i]);
+    }
+    pmm_get_memory_stats(&total, &used, &free);
+    vga_printf("After free 100 -> Used: %d KB, Free: %d KB\n", used, free);
 
 
-    init_timer(100);
-     __asm__ volatile("sti");
 
-    
-    while(1) {
-        
+    while (1) {
+        shell_run();
     }
 }

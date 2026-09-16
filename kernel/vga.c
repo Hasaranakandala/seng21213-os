@@ -6,7 +6,7 @@
  * ============================================================================*/
 #include "vga.h"
 #include "../include/types.h"
-
+extern void serial_putc(char c);
 /* ---------------------------------------------------------------------------
  * Internal state
  * --------------------------------------------------------------------------*/
@@ -82,7 +82,9 @@ void vga_set_color(vga_color_t fg, vga_color_t bg) {
     cur_attr = VGA_ATTR(fg, bg);
 }
 
+extern void serial_putc(char c);
 void vga_putchar(char c) {
+   serial_putc(c);
     if (c == '\n') {
         cursor_col = 0;
         cursor_row++;

@@ -1,3 +1,4 @@
+#include <pmm.h>
 #include "shell.h"
 #include "vga.h"
 #include "keyboard.h"
@@ -10,8 +11,17 @@ typedef struct { uint32_t pid; process_state_t state; uint32_t stack_pointer; ui
 extern pcb_t process_table[];
 extern uint32_t next_pid;
 
-void cmd_help() { vga_printf("Commands: help, clear, ps\n"); }
+void cmd_help() { vga_printf("Commands: help, clear, ps, meminfo\n"); }
 void cmd_clear() { vga_clear(0); }
+
+void cmd_meminfo() {
+    uint32_t total, used, free;
+    pmm_get_memory_stats(&total, &used, &free);
+
+    vga_printf("Total Memory: %d MB\n", total / (1024 * 1024));
+    vga_printf("Used Memory: %d KB\n", used / 1024);
+    vga_printf("Free Memory: %d KB\n", free / 1024);
+}
 
 void cmd_ps() {
     vga_printf("PID  STATE\n");
@@ -32,17 +42,18 @@ struct command {
 struct command commands[] = {
     {"help", cmd_help},
     {"clear", cmd_clear},
-    {"ps", cmd_ps}
+    {"ps", cmd_ps},
+    {"meminfo", cmd_meminfo}
 };
 
 void shell_run() {
     char input[128];
     int pos = 0;
-    
+
     while (1) {
         vga_printf("kernel> ");
         pos = 0;
-        
+
         while (1) {
             char c = kb_getchar();
             if (c == '\n') {

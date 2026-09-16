@@ -17,7 +17,7 @@ else
 endif
 
 CFLAGS := -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib \
-	  -Wall -Wextra -O2 -I./include
+	  -Wall -Wextra -O2 -g -I./include
 LDFLAGS := -m elf_i386 -nostdlib
 
 # ---------------------------------------------------------------------------
@@ -38,9 +38,12 @@ KERNEL_C_SRCS  := kernel/kernel.c \
 	          kernel/scheduler.c\
                   kernel/thread.c \
                   kernel/mutex.c \
-                  kernel/semaphore.c
+                  kernel/semaphore.c\
+                  kernel/pmm.c\
+                  kernel/idt.c\
+                  kernel/pic.c
 
-BOOT_OBJS      := build/boot/switch.o
+BOOT_OBJS      := build/boot/switch.o build/boot/idt_load.o build/boot/irq0.o
 KERNEL_C_OBJS  := $(patsubst kernel/%.c, build/%.o, $(KERNEL_C_SRCS))
 
 KERNEL_ELF     := build/kernel.elf
@@ -74,7 +77,7 @@ $(KERNEL_ASM_OBJ): $(KERNEL_ASM_SRC)
 	@echo "  [AS]  $<"
 	$(AS) $(ASFLAGS) $< -o $@
 
-$(BOOT_OBJS): boot/switch.asm
+build/boot/%.o: boot/%.asm
 	@mkdir -p build/boot
 	@echo "  [AS]  $<"
 	$(AS) $(ASFLAGS) $< -o $@
@@ -112,7 +115,7 @@ $(OS_IMAGE): $(BOOT_BIN) $(KERNEL_BIN)
 # Run in QEMU
 # ---------------------------------------------------------------------------
 QEMU      := qemu-system-i386
-QEMUFLAGS := -drive format=raw,file=$(OS_IMAGE) -m 32M -display curses
+QEMUFLAGS := -drive format=raw,file=$(OS_IMAGE) -m 32M -serial stdio
 
 run: $(OS_IMAGE)
 	@echo "  Starting QEMU... (Close window to exit)"
