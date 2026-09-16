@@ -40,7 +40,7 @@ load_kernel:
     xor  bx, bx
 
     mov  ah, 0x02          ; BIOS read sectors
-    mov  al, 64            ; Number of sectors to read
+    mov  al, 15            ; Number of sectors to read
     mov  ch, 0             ; Cylinder 0
     mov  cl, 2             ; Start from sector 2 (sector 1 is MBR)
     mov  dh, 0             ; Head 0

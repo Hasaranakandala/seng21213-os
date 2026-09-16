@@ -35,7 +35,10 @@ KERNEL_C_SRCS  := kernel/kernel.c \
 	          kernel/shell.c \
 	          kernel/string.c \
 	          kernel/process.c \
-	          kernel/scheduler.c
+	          kernel/scheduler.c\
+                  kernel/thread.c \
+                  kernel/mutex.c \
+                  kernel/semaphore.c
 
 BOOT_OBJS      := build/boot/switch.o
 KERNEL_C_OBJS  := $(patsubst kernel/%.c, build/%.o, $(KERNEL_C_SRCS))

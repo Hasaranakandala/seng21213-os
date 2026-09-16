@@ -24,6 +24,40 @@
 #include <stdint.h>
 #include "process.h"
 #include "keyboard.h"
+#include "thread.h"
+#include "mutex.h"
+
+int myglobal = 0;
+mutex_t mymutex;
+
+
+void safe_thread_1(void* arg) {
+    (void)arg;
+    while (1) {
+        mutex_lock(&mymutex);
+        myglobal++;
+        vga_printf("A");
+        mutex_unlock(&mymutex);
+         
+       for(int i=0; i<100000; i++);
+    }
+}
+
+void safe_thread_2(void* arg) {
+    (void)arg;
+    while (1) {
+        mutex_lock(&mymutex);
+        myglobal++;
+        vga_printf("B");
+        mutex_unlock(&mymutex);
+  
+        for(int i=0; i<100000; i++);
+    }
+}
+
+
+
+
 extern void keyboard_init();
 extern void shell_run();
 
@@ -32,7 +66,7 @@ static inline void outb(uint16_t port, uint8_t data) {
     asm volatile("outb %0, %1" : : "a"(data), "Nd"(port));
 }
 
-extern void schedule();
+
 
 void process_a() {
     while (1) {
@@ -57,13 +91,19 @@ void timer_init() {
 
 void kernel_main() {
     vga_init();
-   
-   // keyboard_init();
+    vga_printf("Starting Stage 2: Threads & Mutex Demo...\n");
+
     
-    create_process(process_a,"Process A");
-    create_process(process_b,"Process B");
+    mutex_init(&mymutex);
+    thread_create(safe_thread_1, 0);
+    thread_create(safe_thread_2, 0);
 
-    timer_init();
 
-    shell_run();
+    init_timer(100);
+     __asm__ volatile("sti");
+
+    
+    while(1) {
+        
+    }
 }

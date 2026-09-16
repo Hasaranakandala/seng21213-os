@@ -20,7 +20,7 @@ typedef struct {
 
 void process_init();
 void create_process(void (*entry_fn)(), const char* name);
-void schedule();
+uint32_t schedule(uint32_t esp);
 void init_timer(uint32_t freq);
 
 #endif
