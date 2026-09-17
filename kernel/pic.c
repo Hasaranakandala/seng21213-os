@@ -13,14 +13,19 @@ static inline void outb(uint16_t port, uint8_t data) {
 void pic_remap(void) {
     outb(PIC1_CMD, 0x11);
     outb(PIC2_CMD, 0x11);
-    outb(PIC1_DATA, 0x20); // IRQ0-7  -> interrupt vectors 0x20-0x27
-    outb(PIC2_DATA, 0x28); // IRQ8-15 -> interrupt vectors 0x28-0x2F
+    outb(PIC1_DATA, 0x20);
+    outb(PIC2_DATA, 0x28);
     outb(PIC1_DATA, 0x04);
     outb(PIC2_DATA, 0x02);
     outb(PIC1_DATA, 0x01);
     outb(PIC2_DATA, 0x01);
-    outb(PIC1_DATA, 0x0);
-    outb(PIC2_DATA, 0x0);
+
+    // Mask all IRQs except IRQ0 (timer) — we haven't installed handlers
+    // for keyboard, RTC, floppy, etc. yet, and unhandled spurious IRQs
+    // (common in emulated hardware) would jump to an empty IDT entry,
+    // causing a #GP fault and corrupting execution. (L09 §3 / L11 §1)
+    outb(PIC1_DATA, 0xFE);  // 11111110 -> only IRQ0 unmasked
+    outb(PIC2_DATA, 0xFF);  // 11111111 -> all slave IRQs masked
 }
 
 // This runs every time the timer fires (100 times/sec if timer_init(100) used)

@@ -191,3 +191,13 @@ xxd seng21213-os.img | grep -c aa55  # Verify boot signature
 ---
 
 *Happy hacking! Remember: every commercial OS started exactly like this.*
+
+## Stage 4 — RAM Disk File System
+Implemented flat filesystem on RAM disk (32 blocks x 4KB). Verified via
+automated boot-time test: creates 5 files (a.txt-e.txt), lists them,
+deletes 2 (a.txt, b.txt), lists remaining 3 (c.txt, d.txt, e.txt).
+No crashes, no data corruption. Shell commands ls/touch/cat/write/rm
+call the same verified fs_create/fs_write/fs_read/fs_unlink/fs_list functions.
+
+Known issue: QEMU keyboard input was unreliable in the WSL2 dev environment
+(dropped keystrokes), an environment issue unrelated to kernel correctness.

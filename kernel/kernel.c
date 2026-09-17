@@ -27,6 +27,7 @@
 #include "thread.h"
 #include "mutex.h"
 #include "idt.h"
+#include "fs.h"
 #include "pmm.h"
 int myglobal = 0;
 mutex_t mymutex;
@@ -95,16 +96,44 @@ void timer_init(int freq) {
     outb(0x43, 0x36);
     outb(0x40, divisor & 0xFF);
     outb(0x40, (divisor >> 8) & 0xFF);
+
 }
+static inline uint8_t inb(uint16_t port) {
+    uint8_t result;
+    asm volatile("inb %1, %0" : "=a"(result) : "Nd"(port));
+    return result;
+}
+
+#define COM1_PORT 0x3F8
+
+void serial_init(void) {
+    outb(COM1_PORT + 1, 0x00);    // Disable interrupts
+    outb(COM1_PORT + 3, 0x80);    // Enable DLAB (set baud rate divisor)
+    outb(COM1_PORT + 0, 0x03);    // Divisor low byte (38400 baud)
+    outb(COM1_PORT + 1, 0x00);    // Divisor high byte
+    outb(COM1_PORT + 3, 0x03);    // 8 bits, no parity, one stop bit
+    outb(COM1_PORT + 2, 0xC7);    // Enable FIFO, clear, 14-byte threshold
+    outb(COM1_PORT + 4, 0x0B);    // IRQs enabled, RTS/DSR set
+}
+
+static int serial_transmit_empty(void) {
+    return inb(COM1_PORT + 5) & 0x20;   // bit 5 = Transmit Holding Register Empty
+}
+
 void serial_putc(char c) {
-    outb(0x3F8, c);  // COM1 data register
+    while (!serial_transmit_empty());   // wait until UART is ready for next byte
+    outb(COM1_PORT, c);
 }
+
+
+
 
  void serial_print(const char *s) {
     while (*s) serial_putc(*s++);
 }
 
 void kernel_main() {
+    serial_init();
     serial_print("1: before vga_init\n");
     vga_init();
     serial_print("2: after vga_init\n");
@@ -113,6 +142,8 @@ void kernel_main() {
     serial_print("3: after vga_printf\n");
 
     pmm_init(32 * 1024 * 1024);
+    fs_init();
+    serial_print("8: after fs_init\n");
     serial_print("4: after pmm_init\n");
 
     mutex_init(&mymutex);
@@ -126,35 +157,31 @@ void kernel_main() {
 
     timer_init(100);
     serial_print("6: after timer_init\n");
-
+     
+     
+      
+     __asm__ volatile("cli");
+    serial_print("=== Stage 4 Verification: 5 files ===\n");
+    fs_create("a.txt"); fs_write("a.txt", "File1", 5);
+    fs_create("b.txt"); fs_write("b.txt", "File2", 5);
+    fs_create("c.txt"); fs_write("c.txt", "File3", 5);
+    fs_create("d.txt"); fs_write("d.txt", "File4", 5);
+    fs_create("e.txt"); fs_write("e.txt", "File5", 5);
+    serial_print("--- After creating 5 files ---\n");
+    fs_list();
+    fs_unlink("a.txt");
+    fs_unlink("b.txt");
+    serial_print("--- After deleting 2 files ---\n");
+    fs_list();
+    serial_print("=== Verification Complete ===\n");
+    __asm__ volatile("sti");
+    
     __asm__ volatile("sti");
 
     serial_print("7: after sti\n");
-     serial_print("=== Testing PMM (meminfo) ===\n");
-
-    uint32_t total, used, free;
-    pmm_get_memory_stats(&total, &used, &free);
-    vga_printf("Total Memory: %d KB\n", total);
-    vga_printf("Used Memory: %d KB\n", used);
-    vga_printf("Free Memory: %d KB\n", free);
-
-    serial_print("=== Allocating 100 frames ===\n");
-    void *frames[100];
-    for (int i = 0; i < 100; i++) {
-        frames[i] = pmm_alloc_frame();
-    }
-    pmm_get_memory_stats(&total, &used, &free);
-    vga_printf("After alloc 100 -> Used: %d KB, Free: %d KB\n", used, free);
-
-    serial_print("=== Freeing 100 frames ===\n");
-    for (int i = 0; i < 100; i++) {
-        pmm_free_frame(frames[i]);
-    }
-    pmm_get_memory_stats(&total, &used, &free);
-    vga_printf("After free 100 -> Used: %d KB, Free: %d KB\n", used, free);
-
-
-
+    
+     
+    
     while (1) {
         shell_run();
     }

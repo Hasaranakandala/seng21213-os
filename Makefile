@@ -41,8 +41,9 @@ KERNEL_C_SRCS  := kernel/kernel.c \
                   kernel/semaphore.c\
                   kernel/pmm.c\
                   kernel/idt.c\
-                  kernel/pic.c
-
+                  kernel/pic.c\
+                  kernel/ramdisk.c\
+                  kernel/fs.c
 BOOT_OBJS      := build/boot/switch.o build/boot/idt_load.o build/boot/irq0.o
 KERNEL_C_OBJS  := $(patsubst kernel/%.c, build/%.o, $(KERNEL_C_SRCS))
 
